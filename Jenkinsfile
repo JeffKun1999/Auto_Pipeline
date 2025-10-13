@@ -1,15 +1,12 @@
-// Jenkinsfile (Versión Definitiva y Explícita)
+// Jenkinsfile (Versión Final Simplificada)
 pipeline {
-    // Usamos 'agent none' para tener control total en cada etapa
     agent none
 
-    // Opción para evitar que Jenkins clone el repo automáticamente en cada etapa
     options {
         skipDefaultCheckout()
     }
 
     stages {
-        // ETAPA 1: Descargar el código UNA SOLA VEZ
         stage('Checkout Source Code') {
             agent any
             steps {
@@ -18,19 +15,12 @@ pipeline {
             }
         }
 
-        // ETAPA 2: Ejecutar todo dentro de un contenedor Docker controlado
         stage('Build and Execute in Docker') {
-            // Usamos un agente simple solo para iniciar el bloque de script
             agent any
             steps {
-                // Usamos un bloque 'script' para poder usar la sintaxis .inside()
                 script {
-                    // Esta es la forma más robusta de usar un contenedor.
-                    // Le decimos a Jenkins que use esta imagen y ejecute todo lo que está
-                    // dentro de las llaves DENTRO del contenedor.
                     docker.image('python:3.9-slim').inside('-w /app') {
                         
-                        // El bloque withCredentials funciona igual aquí dentro
                         withCredentials([
                             string(credentialsId: 'GMAIL_SENDER_EMAIL', variable: 'GMAIL_SENDER_EMAIL'),
                             string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'GMAIL_RECEIVER_EMAIL'),
@@ -47,16 +37,6 @@ pipeline {
                         }
                     }
                 }
-            }
-        }
-    }
-    
-    post {
-        always {
-            
-            node {
-                echo 'Limpiando el espacio de trabajo...'
-                cleanWs()
             }
         }
     }
