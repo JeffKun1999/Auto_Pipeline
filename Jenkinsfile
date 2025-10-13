@@ -4,6 +4,7 @@ pipeline {
     // Usar Docker es una práctica moderna que asegura un entorno limpio y consistente.
     agent {
         docker { image 'python:3.9-slim' }
+        args '-w /app'
     }
 
     stages {
