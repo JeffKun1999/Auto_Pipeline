@@ -1,4 +1,4 @@
-// Jenkinsfile (Versión Final Simplificada)
+// Jenkinsfile (Versión Final Corregida)
 pipeline {
     agent none
 
@@ -8,6 +8,7 @@ pipeline {
 
     stages {
         stage('Checkout Source Code') {
+            // Este agente es necesario para descargar el código
             agent any
             steps {
                 echo 'Clonando el repositorio una sola vez...'
@@ -16,11 +17,11 @@ pipeline {
         }
 
         stage('Build and Execute in Docker') {
-            agent any
+            // HEMOS ELIMINADO EL 'agent any' DE ESTA ETAPA
             steps {
                 script {
+                    // El comando .inside() provee su propio entorno de ejecución
                     docker.image('python:3.9-slim').inside('-w /app') {
-                        
                         withCredentials([
                             string(credentialsId: 'GMAIL_SENDER_EMAIL', variable: 'GMAIL_SENDER_EMAIL'),
                             string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'GMAIL_RECEIVER_EMAIL'),
