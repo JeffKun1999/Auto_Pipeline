@@ -1,44 +1,52 @@
-// Jenkinsfile (Versión Final Corregida)
+// Jenkinsfile (Versión para Ejecución Nativa en Windows)
 pipeline {
-    agent none
-
-    options {
-        skipDefaultCheckout()
-    }
+    // El agente 'any' ejecutará los pasos directamente en el nodo principal de Jenkins (tu máquina Windows)
+    agent any
 
     stages {
         stage('Checkout Source Code') {
-            // Este agente es necesario para descargar el código
-            agent any
             steps {
-                echo 'Clonando el repositorio una sola vez...'
+                echo 'Clonando el repositorio...'
+                // Este paso no cambia
                 checkout scm
             }
         }
 
-        stage('Build and Execute in Docker') {
-            // HEMOS ELIMINADO EL 'agent any' DE ESTA ETAPA
+        stage('Build and Execute Python Script') {
             steps {
-                script {
-                    // El comando .inside() provee su propio entorno de ejecución
-                    docker.image('python:3.9-slim').inside('-w /app') {
-                        withCredentials([
-                            string(credentialsId: 'GMAIL_SENDER_EMAIL', variable: 'GMAIL_SENDER_EMAIL'),
-                            string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'GMAIL_RECEIVER_EMAIL'),
-                            string(credentialsId: 'GMAIL_LOGIN', variable: 'GMAIL_LOGIN'),
-                            string(credentialsId: 'GMAIL_APP_PASSWORD', variable: 'GMAIL_APP_PASSWORD')
-                        ]) {
-                            sh 'echo "--- Preparando Entorno ---"'
-                            sh 'python -m venv .venv'
-                            sh 'source .venv/bin/activate'
-                            sh 'pip install -r requirements.txt'
-                            
-                            sh 'echo "--- Ejecutando Script ---"'
-                            sh 'python compare_pdfs.py DocumentoA_1.pdf DocumentoA2.pdf'
-                        }
-                    }
+                // El bloque 'withCredentials' sigue siendo la forma segura de manejar secretos
+                withCredentials([
+                    string(credentialsId: 'EMAIL_HOST', variable: 'EMAIL_HOST'),
+                    string(credentialsId: 'EMAIL_PORT', variable: 'EMAIL_PORT'),
+                    string(credentialsId: 'EMAIL_HOST_USER', variable: 'EMAIL_HOST_USER'),
+                    string(credentialsId: 'EMAIL_HOST_PASSWORD', variable: 'EMAIL_HOST_PASSWORD'),
+                    string(credentialsId: 'RECIPIENT_EMAIL', variable: 'RECIPIENT_EMAIL')
+                ]) {
+                    // Usamos el paso 'bat' para ejecutar comandos de batch de Windows
+                    bat '''
+                        echo "--- Preparando Entorno de Python ---"
+                        
+                        REM Crea el entorno virtual
+                        python -m venv .venv
+                        
+                        REM Activa el entorno virtual y luego instala las dependencias
+                        call .venv\\Scripts\\activate.bat && pip install -r requirements.txt
+                        
+                        echo "--- Ejecutando Script de Python ---"
+                        
+                        REM Ejecuta el script. 'call' asegura que el flujo continúe.
+                        call python compare_pdfs.py DocumentoA_1.pdf DocumentoA2.pdf
+                    '''
                 }
             }
+        }
+    }
+    
+    post {
+        always {
+            // La limpieza ahora funcionará sin problemas en el agente principal
+            echo 'Limpiando el espacio de trabajo...'
+            cleanWs()
         }
     }
 }
