@@ -1,0 +1,12 @@
+[1m.\compare_pdfs.py[m[36m:[m17[36m:[m1[36m:[m [1m[31mE302[m expected 2 blank lines, found 1
+[1m.\compare_pdfs.py[m[36m:[m33[36m:[m1[36m:[m [1m[31mE302[m expected 2 blank lines, found 1
+[1m.\compare_pdfs.py[m[36m:[m45[36m:[m101[36m:[m [1m[31mE501[m line too long (119 > 100 characters)
+[1m.\compare_pdfs.py[m[36m:[m64[36m:[m1[36m:[m [1m[31mE302[m expected 2 blank lines, found 1
+[1m.\compare_pdfs.py[m[36m:[m67[36m:[m101[36m:[m [1m[31mE501[m line too long (101 > 100 characters)
+[1m.\compare_pdfs.py[m[36m:[m75[36m:[m20[36m:[m [1m[31mE261[m at least two spaces before inline comment
+[1m.\compare_pdfs.py[m[36m:[m89[36m:[m1[36m:[m [1m[31mW293[m blank line contains whitespace
+[1m.\compare_pdfs.py[m[36m:[m105[36m:[m11[36m:[m [1m[31mW292[m no newline at end of file
+[1m.\test_compare.py[m[36m:[m3[36m:[m40[36m:[m [1m[31mE261[m at least two spaces before inline comment
+[1m.\test_compare.py[m[36m:[m7[36m:[m1[36m:[m [1m[31mE302[m expected 2 blank lines, found 1
+[1m.\test_compare.py[m[36m:[m30[36m:[m1[36m:[m [1m[31mE302[m expected 2 blank lines, found 1
+[1m.\test_compare.py[m[36m:[m38[36m:[m31[36m:[m [1m[31mW292[m no newline at end of file
