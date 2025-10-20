@@ -1,4 +1,4 @@
-// Jenkinsfile Final - Con Notificaciones por Correo
+// Jenkinsfile Final - Corregido para Windows y sintaxis de Post
 pipeline {
     agent any
 
@@ -71,7 +71,7 @@ pipeline {
                         "EMAIL_PORT=587"
                     ]) {
                         echo '--- Desplegando la aplicación ---'
-                        
+                        // La línea 'chmod' ha sido eliminada.
                         bat './deploy.sh'
                         
                         echo '--- Ejecutando Script de Comparación de PDFs ---'
@@ -84,7 +84,7 @@ pipeline {
     }
     
     // =================================================================
-    // SECCIÓN POST MODIFICADA CON NOTIFICACIONES POR CORREO
+    // SECCIÓN POST CORREGIDA (SIN EL BLOQUE 'steps')
     // =================================================================
     post {
         always {
@@ -96,56 +96,32 @@ pipeline {
             echo 'Pipeline completado exitosamente.'
         }
         unstable {
-            steps {
-                script {
-                    echo 'Pipeline completado con advertencias (UNSTABLE). Enviando reporte por correo...'
-                    
-                    // Lee el reporte de Flake8 para incluirlo en el cuerpo del correo
-                    def report = fileExists('flake8-report.txt') ? readFile('flake8-report.txt') : 'No se encontró el reporte de Flake8.'
-
-                    // Accede a las credenciales para obtener el email del destinatario
-                    withCredentials([string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'RECIPIENT_EMAIL')]) {
-                        emailext (
-                            to: "${env.RECIPIENT_EMAIL}",
-                            subject: "ADVERTENCIA: Pipeline '${env.JOB_NAME}' - Build #${env.BUILD_NUMBER} Inestable",
-                            body: """
-                            <h1>Estado del Pipeline: INESTABLE</h1>
-                            <p>El pipeline para el proyecto <b>${env.JOB_NAME}</b> ha finalizado con advertencias.</p>
-                            <p><b>Build:</b> <a href="${env.BUILD_URL}">${env.BUILD_NUMBER}</a></p>
-                            <hr>
-                            <h2>Reporte de Calidad de Código (Flake8):</h2>
-                            <pre>${report}</pre>
-                            <hr>
-                            <p>Se recomienda revisar los problemas de calidad de código encontrados.</p>
-                            """,
-                            mimeType: 'text/html',
-                            attachLog: true, // Adjunta el log completo de la consola
-                            attachmentsPattern: 'flake8-report.txt' // Adjunta el reporte de flake8
-                        )
-                    }
+            script {
+                echo 'Pipeline completado con advertencias (UNSTABLE). Enviando reporte por correo...'
+                def report = fileExists('flake8-report.txt') ? readFile('flake8-report.txt') : 'No se encontró el reporte de Flake8.'
+                withCredentials([string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'RECIPIENT_EMAIL')]) {
+                    emailext (
+                        to: "${env.RECIPIENT_EMAIL}",
+                        subject: "ADVERTENCIA: Pipeline '${env.JOB_NAME}' - Build #${env.BUILD_NUMBER} Inestable",
+                        body: """<h1>Estado del Pipeline: INESTABLE</h1><p>El pipeline para el proyecto <b>${env.JOB_NAME}</b> ha finalizado con advertencias.</p><p><b>Build:</b> <a href="${env.BUILD_URL}">${env.BUILD_NUMBER}</a></p><hr><h2>Reporte de Calidad de Código (Flake8):</h2><pre>${report}</pre><hr><p>Se recomienda revisar los problemas de calidad de código encontrados.</p>""",
+                        mimeType: 'text/html',
+                        attachLog: true,
+                        attachmentsPattern: 'flake8-report.txt'
+                    )
                 }
             }
         }
         failure {
-            steps {
-                script {
-                    echo 'Pipeline falló. Enviando notificación por correo...'
-                    
-                    // Accede a las credenciales para obtener el email del destinatario
-                    withCredentials([string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'RECIPIENT_EMAIL')]) {
-                        emailext (
-                            to: "${env.RECIPIENT_EMAIL}",
-                            subject: "FALLO: Pipeline '${env.JOB_NAME}' - Build #${env.BUILD_NUMBER} Falló",
-                            body: """
-                            <h1>Estado del Pipeline: FALLIDO</h1>
-                            <p>El pipeline para el proyecto <b>${env.JOB_NAME}</b> ha fallado.</p>
-                            <p><b>Build:</b> <a href="${env.BUILD_URL}">${env.BUILD_NUMBER}</a></p>
-                            <p>Revisa el log adjunto para identificar la causa del error.</p>
-                            """,
-                            mimeType: 'text/html',
-                            attachLog: true // Adjunta el log completo de la consola
-                        )
-                    }
+            script {
+                echo 'Pipeline falló. Enviando notificación por correo...'
+                withCredentials([string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'RECIPIENT_EMAIL')]) {
+                    emailext (
+                        to: "${env.RECIPIENT_EMAIL}",
+                        subject: "FALLO: Pipeline '${env.JOB_NAME}' - Build #${env.BUILD_NUMBER} Falló",
+                        body: """<h1>Estado del Pipeline: FALLIDO</h1><p>El pipeline para el proyecto <b>${env.JOB_NAME}</b> ha fallado.</p><p><b>Build:</b> <a href="${env.BUILD_URL}">${env.BUILD_NUMBER}</a></p><p>Revisa el log adjunto para identificar la causa del error.</p>""",
+                        mimeType: 'text/html',
+                        attachLog: true
+                    )
                 }
             }
         }
