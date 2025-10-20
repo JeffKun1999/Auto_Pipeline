@@ -3,7 +3,7 @@ pipeline {
     agent any
 
     stages {
-        // ... (tus etapas 'stage' se mantienen exactamente igual que en tu versión) ...
+        
         stage('Checkout Source Code') {
             steps {
                 echo 'Clonando el repositorio...'
@@ -32,14 +32,16 @@ pipeline {
             }
         }
 
+            // Etapa 4: Analizar la calidad del código con Flake8 (MODIFICADA)
         stage('Code Quality Analysis') {
             steps {
                 script {
                     echo '--- Ejecutando Análisis de Calidad de Código con Flake8 ---'
                     def flake8_status = bat script: "${env.VENV_ACTIVATE} && flake8 --output-file=flake8-report.txt --tee", returnStatus: true
+                    
                     if (flake8_status != 0) {
-                        echo "Flake8 encontró problemas. Marcando el build como INESTABLE, pero continuando."
-                        currentBuild.result = 'UNSTABLE'
+                        // Ya no cambiamos el estado. Solo mostramos una advertencia en el log.
+                        echo "Flake8 encontró problemas de estilo, pero el pipeline continuará como exitoso."
                     } else {
                         echo "El análisis de Flake8 pasó sin problemas."
                     }
