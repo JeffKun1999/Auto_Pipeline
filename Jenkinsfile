@@ -1,10 +1,9 @@
-// Jenkinsfile Final - Corregido para limpieza y SMTP
+// Jenkinsfile Final - Lógica de limpieza corregida
 pipeline {
     agent any
 
     stages {
-        // ... (todas tus etapas 'stage' se mantienen exactamente igual) ...
-        // Etapa 1: Descargar el código fuente del repositorio
+        // ... (tus etapas 'stage' se mantienen exactamente igual que en tu versión) ...
         stage('Checkout Source Code') {
             steps {
                 echo 'Clonando el repositorio...'
@@ -12,7 +11,6 @@ pipeline {
             }
         }
 
-        // Etapa 2: Inicializar variables de entorno según el SO
         stage('Initialize') {
             steps {
                 script {
@@ -26,7 +24,6 @@ pipeline {
             }
         }
 
-        // Etapa 3: Construir el entorno
         stage('Build Environment') {
             steps {
                 echo '--- Preparando Entorno de Python ---'
@@ -35,7 +32,6 @@ pipeline {
             }
         }
 
-        // Etapa 4: Analizar la calidad del código con Flake8
         stage('Code Quality Analysis') {
             steps {
                 script {
@@ -51,7 +47,6 @@ pipeline {
             }
         }
 
-        // Etapa 5: Ejecutar las pruebas unitarias con Pytest
         stage('Unit Tests') {
             steps {
                 echo '--- Ejecutando Pruebas Unitarias con Pytest ---'
@@ -59,7 +54,6 @@ pipeline {
             }
         }
         
-        // Etapa 6: Desplegar la aplicación y ejecutar la comparación
         stage('Deploy & Execute') {
             steps {
                 withCredentials([
@@ -83,18 +77,15 @@ pipeline {
         }
     }
     
-    // =================================================================
-    // SECCIÓN POST CORREGIDA - LÓGICA DE LIMPIEZA AJUSTADA
-    // =================================================================
     post {
         always {
-            // 'always' ahora solo archiva, no limpia.
+            // 'always' ahora solo archiva, para asegurar que el reporte esté disponible.
             echo 'Archivando artefactos...'
             archiveArtifacts artifacts: 'flake8-report.txt', allowEmptyArchive: true
         }
         success {
             echo 'Pipeline completado exitosamente.'
-            // Limpiamos el workspace al final.
+            // La limpieza se hace al final de cada bloque.
             cleanWs()
         }
         unstable {
@@ -111,7 +102,7 @@ pipeline {
                         attachmentsPattern: 'flake8-report.txt'
                     )
                 }
-                // Limpiamos el workspace al final.
+                // La limpieza se hace al final de cada bloque.
                 cleanWs()
             }
         }
@@ -127,7 +118,7 @@ pipeline {
                         attachLog: true
                     )
                 }
-                // Limpiamos el workspace al final.
+                // La limpieza se hace al final de cada bloque.
                 cleanWs()
             }
         }
