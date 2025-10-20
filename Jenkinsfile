@@ -1,4 +1,4 @@
-// Jenkinsfile Corregido
+// Jenkinsfile Final - Con Notificaciones por Correo
 pipeline {
     agent any
 
@@ -15,8 +15,6 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    // Este es el modo correcto de asignar una variable condicional
-                    // Se usa un bloque 'script' para poder usar la lógica de Groovy
                     if (isUnix()) {
                         env.VENV_ACTIVATE = 'source .venv/bin/activate'
                     } else {
@@ -27,14 +25,11 @@ pipeline {
             }
         }
 
-        // Etapa 3: Construir el entorno. Se hace UNA SOLA VEZ.
+        // Etapa 3: Construir el entorno
         stage('Build Environment') {
             steps {
                 echo '--- Preparando Entorno de Python ---'
-                // Crea el entorno virtual
                 bat 'python -m venv .venv'
-                
-                // Activa el entorno e instala dependencias usando la variable preparada
                 bat "${env.VENV_ACTIVATE} && pip install -r requirements.txt"
             }
         }
@@ -42,8 +37,16 @@ pipeline {
         // Etapa 4: Analizar la calidad del código con Flake8
         stage('Code Quality Analysis') {
             steps {
-                echo '--- Ejecutando Análisis de Calidad de Código con Flake8 ---'
-                bat "${env.VENV_ACTIVATE} && flake8 --output-file=flake8-report.txt --tee"
+                script {
+                    echo '--- Ejecutando Análisis de Calidad de Código con Flake8 ---'
+                    def flake8_status = bat script: "${env.VENV_ACTIVATE} && flake8 --output-file=flake8-report.txt --tee", returnStatus: true
+                    if (flake8_status != 0) {
+                        echo "Flake8 encontró problemas. Marcando el build como INESTABLE, pero continuando."
+                        currentBuild.result = 'UNSTABLE'
+                    } else {
+                        echo "El análisis de Flake8 pasó sin problemas."
+                    }
+                }
             }
         }
 
@@ -80,6 +83,9 @@ pipeline {
         }
     }
     
+    // =================================================================
+    // SECCIÓN POST MODIFICADA CON NOTIFICACIONES POR CORREO
+    // =================================================================
     post {
         always {
             echo 'Limpiando el espacio de trabajo...'
@@ -89,14 +95,57 @@ pipeline {
         success {
             echo 'Pipeline completado exitosamente.'
         }
+        unstable {
+            steps {
+                script {
+                    echo 'Pipeline completado con advertencias (UNSTABLE). Enviando reporte por correo...'
+                    
+                    // Lee el reporte de Flake8 para incluirlo en el cuerpo del correo
+                    def report = fileExists('flake8-report.txt') ? readFile('flake8-report.txt') : 'No se encontró el reporte de Flake8.'
+
+                    // Accede a las credenciales para obtener el email del destinatario
+                    withCredentials([string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'RECIPIENT_EMAIL')]) {
+                        emailext (
+                            to: "${env.RECIPIENT_EMAIL}",
+                            subject: "ADVERTENCIA: Pipeline '${env.JOB_NAME}' - Build #${env.BUILD_NUMBER} Inestable",
+                            body: """
+                            <h1>Estado del Pipeline: INESTABLE</h1>
+                            <p>El pipeline para el proyecto <b>${env.JOB_NAME}</b> ha finalizado con advertencias.</p>
+                            <p><b>Build:</b> <a href="${env.BUILD_URL}">${env.BUILD_NUMBER}</a></p>
+                            <hr>
+                            <h2>Reporte de Calidad de Código (Flake8):</h2>
+                            <pre>${report}</pre>
+                            <hr>
+                            <p>Se recomienda revisar los problemas de calidad de código encontrados.</p>
+                            """,
+                            mimeType: 'text/html',
+                            attachLog: true, // Adjunta el log completo de la consola
+                            attachmentsPattern: 'flake8-report.txt' // Adjunta el reporte de flake8
+                        )
+                    }
+                }
+            }
+        }
         failure {
-            script {
-                echo 'Pipeline falló. Revisar los logs.'
-                if (fileExists('flake8-report.txt')) {
-                    def report = readFile 'flake8-report.txt'
-                    echo "--- Resumen de Errores de Calidad de Código ---"
-                    echo "${report}"
-                    echo "------------------------------------------------"
+            steps {
+                script {
+                    echo 'Pipeline falló. Enviando notificación por correo...'
+                    
+                    // Accede a las credenciales para obtener el email del destinatario
+                    withCredentials([string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'RECIPIENT_EMAIL')]) {
+                        emailext (
+                            to: "${env.RECIPIENT_EMAIL}",
+                            subject: "FALLO: Pipeline '${env.JOB_NAME}' - Build #${env.BUILD_NUMBER} Falló",
+                            body: """
+                            <h1>Estado del Pipeline: FALLIDO</h1>
+                            <p>El pipeline para el proyecto <b>${env.JOB_NAME}</b> ha fallado.</p>
+                            <p><b>Build:</b> <a href="${env.BUILD_URL}">${env.BUILD_NUMBER}</a></p>
+                            <p>Revisa el log adjunto para identificar la causa del error.</p>
+                            """,
+                            mimeType: 'text/html',
+                            attachLog: true // Adjunta el log completo de la consola
+                        )
+                    }
                 }
             }
         }
