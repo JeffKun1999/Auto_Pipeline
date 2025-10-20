@@ -40,8 +40,9 @@ pipeline {
                     def flake8_status = bat script: "${env.VENV_ACTIVATE} && flake8 --output-file=flake8-report.txt --tee", returnStatus: true
                     
                     if (flake8_status != 0) {
-                        // Ya no cambiamos el estado. Solo mostramos una advertencia en el log.
+                        // Aquí se cambiaría el estado del build a 'UNSTABLE'
                         echo "Flake8 encontró problemas de estilo, pero el pipeline continuará como exitoso."
+                        currentBuild.result = 'UNSTABLE'
                     } else {
                         echo "El análisis de Flake8 pasó sin problemas."
                     }
