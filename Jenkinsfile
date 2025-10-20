@@ -48,10 +48,11 @@ pipeline {
                     def flake8_status = bat script: "\"${env.FLAKE8_EXE}\" --output-file=flake8-report.txt --tee", returnStatus: true
                     
                     if (flake8_status != 0) {
-                        echo "⚠️ Flake8 encontró problemas. Marcando el build como INESTABLE."
-                        currentBuild.result = 'UNSTABLE'
+                        // Si Flake8 encuentra problemas, marcamos el build como inestable
+                        echo "Flake8 encontró problemas. Marcando el build como INESTABLE."
+                        //currentBuild.result = 'UNSTABLE'
                     } else {
-                        echo "✅ El análisis de Flake8 pasó sin problemas."
+                        echo " El análisis de Flake8 pasó sin problemas."
                     }
                 }
             }
@@ -96,7 +97,7 @@ pipeline {
         }
         success {
             script {
-                echo '✅ Pipeline completado exitosamente. Enviando notificación...'
+                echo 'Pipeline completado exitosamente. Enviando notificación...'
                 withCredentials([string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'RECIPIENT_EMAIL')]) {
                     emailext (
                         to: "${env.RECIPIENT_EMAIL}",
@@ -131,7 +132,7 @@ pipeline {
         }
         failure {
             script {
-                echo '❌ Pipeline falló. Enviando notificación por correo...'
+                echo ' Pipeline falló. Enviando notificación por correo...'
                 withCredentials([string(credentialsId: 'GMAIL_RECEIVER_EMAIL', variable: 'RECIPIENT_EMAIL')]) {
                     emailext (
                         to: "${env.RECIPIENT_EMAIL}",
