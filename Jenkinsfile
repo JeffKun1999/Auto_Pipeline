@@ -72,7 +72,7 @@ pipeline {
                     ]) {
                         echo '--- Desplegando la aplicación ---'
                         // La línea 'chmod' ha sido eliminada.
-                        bat './deploy.sh'
+                        bat 'deploy.bat'
                         
                         echo '--- Ejecutando Script de Comparación de PDFs ---'
                         bat "${env.VENV_ACTIVATE} && python compare_pdfs.py DocumentoA_1.pdf DocumentoA2.pdf"
