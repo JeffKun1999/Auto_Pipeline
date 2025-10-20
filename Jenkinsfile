@@ -1,8 +1,9 @@
-// Jenkinsfile Final - Corregido para Windows y sintaxis de Post
+// Jenkinsfile Final - Corregido para limpieza y SMTP
 pipeline {
     agent any
 
     stages {
+        // ... (todas tus etapas 'stage' se mantienen exactamente igual) ...
         // Etapa 1: Descargar el código fuente del repositorio
         stage('Checkout Source Code') {
             steps {
@@ -71,7 +72,6 @@ pipeline {
                         "EMAIL_PORT=587"
                     ]) {
                         echo '--- Desplegando la aplicación ---'
-                        // La línea 'chmod' ha sido eliminada.
                         bat 'deploy.bat'
                         
                         echo '--- Ejecutando Script de Comparación de PDFs ---'
@@ -84,16 +84,18 @@ pipeline {
     }
     
     // =================================================================
-    // SECCIÓN POST CORREGIDA (SIN EL BLOQUE 'steps')
+    // SECCIÓN POST CORREGIDA - LÓGICA DE LIMPIEZA AJUSTADA
     // =================================================================
     post {
         always {
-            echo 'Limpiando el espacio de trabajo...'
+            // 'always' ahora solo archiva, no limpia.
+            echo 'Archivando artefactos...'
             archiveArtifacts artifacts: 'flake8-report.txt', allowEmptyArchive: true
-            cleanWs()
         }
         success {
             echo 'Pipeline completado exitosamente.'
+            // Limpiamos el workspace al final.
+            cleanWs()
         }
         unstable {
             script {
@@ -109,6 +111,8 @@ pipeline {
                         attachmentsPattern: 'flake8-report.txt'
                     )
                 }
+                // Limpiamos el workspace al final.
+                cleanWs()
             }
         }
         failure {
@@ -123,6 +127,8 @@ pipeline {
                         attachLog: true
                     )
                 }
+                // Limpiamos el workspace al final.
+                cleanWs()
             }
         }
     }
