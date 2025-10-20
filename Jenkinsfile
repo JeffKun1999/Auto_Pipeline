@@ -71,7 +71,7 @@ pipeline {
                         "EMAIL_PORT=587"
                     ]) {
                         echo '--- Desplegando la aplicación ---'
-                        bat 'chmod +x deploy.sh'
+                        
                         bat './deploy.sh'
                         
                         echo '--- Ejecutando Script de Comparación de PDFs ---'
