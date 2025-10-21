@@ -40,7 +40,7 @@ pipeline {
             }
         }
 
-        // Etapa 4: Analizar la calidad del código
+        // Analizar la calidad del código
         stage('Code Quality Analysis') {
             steps {
                 script {
