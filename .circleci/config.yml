@@ -1,31 +1,123 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
-# See: https://circleci.com/docs/reference/configuration-reference
+# Usar la versión 2.1 del motor de pipelines de CircleCI
 version: 2.1
 
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#jobs-overview & https://circleci.com/docs/reference/configuration-reference/#jobs
-jobs:
-  say-hello:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/guides/execution-managed/executor-intro/ & https://circleci.com/docs/reference/configuration-reference/#executor-job
+# ---------------------------------------------------------------------
+# EJECUTOR REUTILIZABLE
+# ---------------------------------------------------------------------
+executors:
+  python-executor:
     docker:
-      # Specify the version you desire here
-      # See: https://circleci.com/developer/images/image/cimg/base
-      - image: cimg/base:current
+      - image: cimg/python:3.10 # Puedes cambiar la versión de Python aquí
 
-    # Add steps to the job
-    # See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#steps-overview & https://circleci.com/docs/reference/configuration-reference/#steps
+# ---------------------------------------------------------------------
+# COMANDOS REUTILIZABLES
+# ---------------------------------------------------------------------
+# (Se eliminó la sección 'commands:' que definía 'send_notification')
+# ---------------------------------------------------------------------
+
+# ---------------------------------------------------------------------
+# JOBS
+# ---------------------------------------------------------------------
+jobs:
+  build-test-notify:
+    executor: python-executor
+    # El job usará automáticamente las variables de la UI del proyecto
+    
     steps:
-      # Checkout the code as the first step.
+      # Etapa 1: Checkout Source Code
       - checkout
-      - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
 
-# Orchestrate jobs using workflows
-# See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
+      # Etapa 2 y 3: Initialize y Build Environment
+      - run:
+          name: "Build Environment - 🏗️ Construir Entorno Virtual"
+          command: |
+            echo "--- Preparando Entorno de Python ---"
+            python3 -m venv .venv
+            source .venv/bin/activate
+            
+            echo "--- Instalando dependencias ---"
+            pip install -r requirements.txt
+            
+            echo "--- Instalando cliente de email (yagmail) ---"
+            pip install yagmail
+
+      # Etapa 4: Code Quality Analysis
+      - run:
+          name: "Code Quality - 🎨 Análisis de Calidad (Flake8)"
+          command: |
+            echo "--- Ejecutando Análisis de Calidad de Código con Flake8 ---"
+            source .venv/bin/activate
+            flake8 --output-file=flake8-report.txt --tee || echo "Flake8 encontró problemas" > flake8_failure.txt
+
+      # Etapa 5: Unit Tests
+      - run:
+          name: "Unit Tests - 🧪 Ejecutar Pruebas Unitarias"
+          command: |
+            echo "--- Ejecutando Pruebas Unitarias con Pytest ---"
+            source .venv/bin/activate
+            pytest
+
+      # Etapa 6: Deploy & Execute
+      - run:
+          name: "Deploy & Execute - 🚀 Desplegar y Ejecutar"
+          command: |
+            echo "--- Desplegando la aplicación ---"
+            if [ -f "deploy.sh" ]; then
+              sh deploy.sh
+            elif [ -f "deploy.bat" ]; then
+               echo "ADVERTENCIA: Se encontró 'deploy.bat' pero este es un ejecutor de Linux."
+               bash deploy.bat
+            else
+              echo "Error: No se encontró 'deploy.sh' o 'deploy.bat'."
+              exit 1
+            fi
+            
+            echo "--- Ejecutando Script de Comparación de PDFs ---"
+            source .venv/bin/activate
+            python compare_pdfs.py DocumentoA_1.pdf DocumentoA2.pdf
+            python compare_pdfs.py DocumentoA_1.pdf DocumentoB1.pdf
+
+      # --- Pasos equivalentes al 'post' de Jenkins ---
+
+      # Post: Always (Archivar Artefactos)
+      - store_artifacts:
+          name: "Archivar reporte de Flake8"
+          path: flake8-report.txt
+          when: always # 'when' es válido aquí porque 'store_artifacts' es nativo
+
+      # --- INICIO DE LA CORRECCIÓN ---
+      
+      # Post: Success / Unstable
+      # Este paso 'run' SÓLO se ejecuta si los pasos anteriores (pytest, deploy) tuvieron éxito
+      - run:
+          name: "Notificación (Éxito / Inestable)"
+          when: on_success # 'when' es válido aquí porque 'run' es nativo
+          command: |
+            source .venv/bin/activate
+            if [ -f "flake8_failure.txt" ]; then
+              echo "Job exitoso, pero Flake8 falló. Enviando email 'UNSTABLE'."
+              python send_mail.py unstable
+            else
+              echo "Job exitoso. Enviando email 'SUCCESS'."
+              python send_mail.py success
+            fi
+
+      # Post: Failure
+      # Este paso 'run' SÓLO se ejecuta si algún paso anterior (pytest, deploy) falló
+      - run:
+          name: "Notificación (Fallo)"
+          when: on_fail # 'when' es válido aquí porque 'run' es nativo
+          command: |
+            source .venv/bin/activate
+            echo "Job fallido. Enviando email 'FAILURE'."
+            python send_mail.py failure
+      
+      # --- FIN DE LA CORRECCIÓN ---
+
+# ---------------------------------------------------------------------
+# WORKFLOWS
+# ---------------------------------------------------------------------
 workflows:
-  say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
-    # Inside the workflow, you define the jobs you want to run.
+  main-workflow:
     jobs:
-      - say-hello
+      - build-test-notify
