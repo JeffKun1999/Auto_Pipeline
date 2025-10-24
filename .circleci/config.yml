@@ -10,12 +10,6 @@ executors:
       - image: cimg/python:3.10 # Puedes cambiar la versión de Python aquí
 
 # ---------------------------------------------------------------------
-# COMANDOS REUTILIZABLES
-# ---------------------------------------------------------------------
-# (Se eliminó la sección 'commands:' que definía 'send_notification')
-# ---------------------------------------------------------------------
-
-# ---------------------------------------------------------------------
 # JOBS
 # ---------------------------------------------------------------------
 jobs:
@@ -25,6 +19,7 @@ jobs:
     
     steps:
       # Etapa 1: Checkout Source Code
+      # Esto descargará tu código Y el nuevo 'send_mail.py'
       - checkout
 
       # Etapa 2 y 3: Initialize y Build Environment
@@ -83,15 +78,12 @@ jobs:
       - store_artifacts:
           name: "Archivar reporte de Flake8"
           path: flake8-report.txt
-          when: always # 'when' es válido aquí porque 'store_artifacts' es nativo
+          when: always 
 
-      # --- INICIO DE LA CORRECCIÓN ---
-      
       # Post: Success / Unstable
-      # Este paso 'run' SÓLO se ejecuta si los pasos anteriores (pytest, deploy) tuvieron éxito
       - run:
           name: "Notificación (Éxito / Inestable)"
-          when: on_success # 'when' es válido aquí porque 'run' es nativo
+          when: on_success 
           command: |
             source .venv/bin/activate
             if [ -f "flake8_failure.txt" ]; then
@@ -103,16 +95,13 @@ jobs:
             fi
 
       # Post: Failure
-      # Este paso 'run' SÓLO se ejecuta si algún paso anterior (pytest, deploy) falló
       - run:
           name: "Notificación (Fallo)"
-          when: on_fail # 'when' es válido aquí porque 'run' es nativo
+          when: on_fail 
           command: |
             source .venv/bin/activate
             echo "Job fallido. Enviando email 'FAILURE'."
             python send_mail.py failure
-      
-      # --- FIN DE LA CORRECCIÓN ---
 
 # ---------------------------------------------------------------------
 # WORKFLOWS
