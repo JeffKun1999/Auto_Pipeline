@@ -11,14 +11,25 @@ spec:
         spec:
           containers:
           - name: pdf-comparator
-            image: tu_usuario_dockerhub/pdf-compare-app:latest # ¡CAMBIA ESTO!
+            # IMPORTANTE: Cambia 'tu_usuario_dockerhub' por tu usuario real de Docker Hub
+            image: tu_usuario_dockerhub/pdf-compare-app:latest 
             imagePullPolicy: Always
             command: ["python", "compare_pdfs.py", "DocumentoA_1.pdf", "DocumentoA2.pdf"]
             env:
-            # Las credenciales deben venir de Secretos de K8s, pero para esta práctica:
+            # SDK Key de LaunchDarkly (tomada de tu ejemplo)
             - name: LD_SDK_KEY
               value: "sdk-35c49438-74f2-4f95-be35-7f3a0722d3ae"
+            
+            # Configuración de Correo Electrónico
+            - name: EMAIL_HOST
+              value: "smtp.gmail.com"
+            - name: EMAIL_PORT
+              value: "587"
             - name: EMAIL_HOST_USER
-              value: "tu_email@gmail.com"
-            # Añade el resto de variables de entorno necesarias aquí
+              value: "je1400r@gmail.com"
+            - name: EMAIL_HOST_PASSWORD
+              value: "qvft zagh ranv askk"
+            - name: RECIPIENT_EMAIL
+              value: "juanjominino@gmail.com"
+              
           restartPolicy: OnFailure
