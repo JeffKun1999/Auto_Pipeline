@@ -18,7 +18,7 @@ spec:
             env:
             # SDK Key de LaunchDarkly (tomada de tu ejemplo)
             - name: LD_SDK_KEY
-              value: "sdk-35c49438-74f2-4f95-be35-7f3a0722d3ae"
+              value: "sdk-4c9a5f90-1222-4563-8263-4de07217f1a4"
             
             # Configuración de Correo Electrónico
             - name: EMAIL_HOST
