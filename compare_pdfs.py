@@ -92,7 +92,7 @@ def main():
     if not feature_enabled:
         print("--- FEATURE FLAG: La comparación de PDFs está DESACTIVADA en LaunchDarkly ---")
         print("Saltando ejecución de lógica principal.")
-        ldclient.close()
+        ldclient.get().close()
         return  # Salimos exitosamente pero sin hacer el trabajo
     
     print("--- FEATURE FLAG: Funcionalidad ACTIVA. Procediendo... ---")
@@ -134,7 +134,9 @@ def main():
     else:
         print("No se pudo completar la comparación debido a un error al leer los archivos.")
         sys.exit(1)
-
+ # Cerrar el cliente al finalizar correctamente
+    if ld_sdk_key:
+        ldclient.get().close() # <--- CORRECCIÓN AQUÍ
 
 if __name__ == "__main__":
     main()
