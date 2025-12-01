@@ -1,0 +1,38 @@
+def main():
+    """Función principal que orquesta la comparación y la notificación."""
+    load_dotenv()  # Carga las variables de entorno desde el archivo .env
+    parser = argparse.ArgumentParser(description="Compara dos archivos PDF y notifica el resultado.")
+    parser.add_argument("file1", help="Ruta al primer archivo PDF.")
+    parser.add_argument("file2", help="Ruta al segundo archivo PDF.")
+    args = parser.parse_args()
+
+    # --- Etapa de 'Build/Preparación': Verificar que los archivos existen ---
+    if not os.path.exists(args.file1) or not os.path.exists(args.file2):
+        print("Error: Uno o ambos archivos PDF no existen. Por favor, verifica las rutas.")
+        sys.exit(1) # Termina el script con un código de error
+
+    # --- Etapa de 'Test/Ejecución': Comparar los archivos ---
+    print(f"Comparando '{os.path.basename(args.file1)}' y '{os.path.basename(args.file2)}'...")
+    hash1 = calculate_hash(args.file1)
+    hash2 = calculate_hash(args.file2)
+
+    if hash1 and hash2:
+        if hash1 == hash2:
+            resultado = "Los archivos son idénticos."
+            print(f"Resultado: {resultado}")
+        else:
+            resultado = "Los archivos son diferentes."
+            print(f"Resultado: {resultado}")
+        
+        # --- Etapa de 'Notificación' ---
+        email_subject = "Resultado de Comparación de PDFs"
+        email_body = (
+            f"Se ha completado la comparación de los siguientes archivos:\n"
+            f"- Archivo 1: {os.path.basename(args.file1)}\n"
+            f"- Archivo 2: {os.path.basename(args.file2)}\n\n"
+            f"Resultado: {resultado}"
+        )
+        send_email_notification(email_subject, email_body)
+    else:
+        print("No se pudo completar la comparación debido a un error al leer los archivos.")
+        sys.exit(1)

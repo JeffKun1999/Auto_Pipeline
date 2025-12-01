@@ -30,6 +30,8 @@ pipeline {
             }
         }
 
+
+
         // Etapa 3: Construir el entorno usando la ruta explícita
         stage('Build Environment') {
             steps {
@@ -65,7 +67,24 @@ pipeline {
                 bat "\"${env.PYTEST_EXE}\""
             }
         }
-        
+
+
+
+        stage('Build & Push Docker Image') {
+            steps {
+                script {
+                    echo '--- Construyendo Imagen Docker ---'
+                    // Asegúrate de tener el plugin de Docker Pipeline instalado
+                    docker.withRegistry('https://index.docker.io/v1/', 'DOCKER_HUB_CREDS') {
+                        def appImage = docker.build("tu_usuario_dockerhub/pdf-compare-app:${env.BUILD_NUMBER}")
+                        appImage.push()
+                        appImage.push("latest")
+                    }
+                }
+            }
+        }
+      
+      /*
         // Etapa 6: Desplegar la aplicación y ejecutar la comparación
         stage('Deploy & Execute') {
             steps {
@@ -87,7 +106,7 @@ pipeline {
                     }
                 }
             }
-        }
+        }*/
     }
     
     post {

@@ -14,6 +14,12 @@ import smtplib
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
+
+# --- NUEVO: Importaciones de LaunchDarkly ---
+import ldclient
+from ldclient.config import Config
+from ldclient import Context
+
 def calculate_hash(file_path):
     """Calcula el hash MD5 de un archivo para una comparación rápida y fiable."""
     hash_md5 = hashlib.md5()
@@ -61,7 +67,36 @@ def send_email_notification(subject, message_body):
     except smtplib.SMTPException as e:
         print(f"Error al enviar el correo: {e}")
 
+#
 def main():
+    """Función principal orquestada con Feature Flag."""
+    load_dotenv()
+    
+    # --- NUEVO: Inicialización de LaunchDarkly ---
+    ld_sdk_key = os.getenv('LD_SDK_KEY')
+    if not ld_sdk_key:
+        print("Advertencia: LD_SDK_KEY no configurada. Ejecutando sin Feature Flags.")
+        # Aquí decides si fallar o continuar por defecto.
+        # Por seguridad, asumiremos ejecución normal si no hay key, o return.
+    else:
+        ldclient.set_config(Config(ld_sdk_key))
+
+    # Definir el contexto (quién está ejecutando esto, puede ser el nombre del servicio)
+    context = Context.builder('jenkins-pipeline-bot').name('Jenkins CI').build()
+
+    # Verificar la Feature Flag
+    # Si la bandera 'enable-pdf-comparison' es False, no hacemos nada.
+    # El tercer parámetro (False) es el valor por defecto si falla la conexión.
+    feature_enabled = ldclient.get().variation("enable-pdf-comparison", context, False)
+
+    if not feature_enabled:
+        print("--- FEATURE FLAG: La comparación de PDFs está DESACTIVADA en LaunchDarkly ---")
+        print("Saltando ejecución de lógica principal.")
+        ldclient.close()
+        return  # Salimos exitosamente pero sin hacer el trabajo
+    
+    print("--- FEATURE FLAG: Funcionalidad ACTIVA. Procediendo... ---")
+        
     """Función principal que orquesta la comparación y la notificación."""
     load_dotenv()  # Carga las variables de entorno desde el archivo .env
     parser = argparse.ArgumentParser(description="Compara dos archivos PDF y notifica el resultado.")
