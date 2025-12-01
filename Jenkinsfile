@@ -76,7 +76,7 @@ pipeline {
                     echo '--- Construyendo Imagen Docker ---'
                     // Asegúrate de tener el plugin de Docker Pipeline instalado
                     docker.withRegistry('https://index.docker.io/v1/', 'DOCKER_HUB_CREDS') {
-                        def appImage = docker.build("tu_usuario_dockerhub/pdf-compare-app:${env.BUILD_NUMBER}")
+                        def appImage = docker.build("jeffdeck/pdf-compare-app:${env.BUILD_NUMBER}")
                         appImage.push()
                         appImage.push("latest")
                     }
