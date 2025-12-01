@@ -17,7 +17,7 @@ spec:
             env:
             # Las credenciales deben venir de Secretos de K8s, pero para esta práctica:
             - name: LD_SDK_KEY
-              value: "TU_CLAVE_SDK_AQUI_O_USAR_SECRETS"
+              value: "sdk-35c49438-74f2-4f95-be35-7f3a0722d3ae"
             - name: EMAIL_HOST_USER
               value: "tu_email@gmail.com"
             # Añade el resto de variables de entorno necesarias aquí
