@@ -12,7 +12,7 @@ spec:
           containers:
           - name: pdf-comparator
             # IMPORTANTE: Cambia 'tu_usuario_dockerhub' por tu usuario real de Docker Hub
-            image: tu_usuario_dockerhub/pdf-compare-app:latest 
+            image: je140/pdf-compare-app:latest 
             imagePullPolicy: Always
             command: ["python", "compare_pdfs.py", "DocumentoA_1.pdf", "DocumentoA2.pdf"]
             env:
