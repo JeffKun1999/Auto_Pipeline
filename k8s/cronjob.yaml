@@ -28,7 +28,7 @@ spec:
             - name: EMAIL_HOST_USER
               value: "je1400r@gmail.com"
             - name: EMAIL_HOST_PASSWORD
-              value: "qvft zagh ranv askk"
+              value: "rujh knft pxhc nedf" #Nueva contraseña de aplicación
             - name: RECIPIENT_EMAIL
               value: "juanjominino@gmail.com"
               
