@@ -74,26 +74,27 @@ def main():
     
     # --- NUEVO: Inicialización de LaunchDarkly ---
     ld_sdk_key = os.getenv('LD_SDK_KEY')
+    feature_enabled = True  # Por defecto, la funcionalidad está habilitada
+
     if not ld_sdk_key:
-        print("Advertencia: LD_SDK_KEY no configurada. Ejecutando sin Feature Flags.")
-        
+        print("Advertencia: LD_SDK_KEY no configurada. Ejecutando sin Feature Flags (modo habilitado por defecto).")
     else:
         ldclient.set_config(Config(ld_sdk_key))
 
-    # Definir el contexto (quién está ejecutando el código)
-    context = Context.builder('jenkins-pipeline-bot').name('Jenkins CI').build()
+        # Definir el contexto (quién está ejecutando el código)
+        context = Context.builder('jenkins-pipeline-bot').name('Jenkins CI').build()
 
-    # Verificar la Feature Flag
-    # Si la bandera 'enable-pdf-comparison' es False, no hace nada.
-    # El tercer parámetro (False) es el valor por defecto si falla la conexión.
-    feature_enabled = ldclient.get().variation("enable-pdf-comparison", context, False)
+        # Verificar la Feature Flag
+        # Si la bandera 'enable-pdf-comparison' es False, no hace nada.
+        # El tercer parámetro (False) es el valor por defecto si falla la conexión.
+        feature_enabled = ldclient.get().variation("enable-pdf-comparison", context, False)
 
-    if not feature_enabled:
-        print("--- FEATURE FLAG: La comparación de PDFs está DESACTIVADA en LaunchDarkly ---")
-        print("Saltando ejecución de lógica principal.")
-        ldclient.get().close()
-        return  # Sale exitosamente pero sin hacer el trabajo
-    
+        if not feature_enabled:
+            print("--- FEATURE FLAG: La comparación de PDFs está DESACTIVADA en LaunchDarkly ---")
+            print("Saltando ejecución de lógica principal.")
+            ldclient.get().close()
+            return  # Sale exitosamente pero sin hacer el trabajo
+
     print("--- FEATURE FLAG: Funcionalidad ACTIVA. Procediendo... ---")
         
     """Función principal que orquesta la comparación y la notificación."""

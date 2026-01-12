@@ -25,3 +25,29 @@ safety
 wapiti3
 Django==5.1.4
 Flask==3.1.0
+
+# ======================================================================
+# DEPENDENCIAS VULNERABLES INTENCIONALES PARA PRUEBAS DEVSECOPS
+# ADVERTENCIA: Estas versiones contienen vulnerabilidades conocidas (CVEs)
+# NUNCA usar estas versiones en producción - solo para demostración
+# ======================================================================
+
+# Vulnerabilidad: CVE-2019-11324 (urllib3 < 1.24.2)
+# Safety debería detectar esto
+urllib3==1.24.1
+
+# Vulnerabilidad: CVE-2018-20060 (urllib3 < 1.24.2)
+# Permite inyección CRLF
+requests==2.20.0
+
+# Vulnerabilidad: CVE-2018-18074 (requests < 2.20.0)
+# Redirección no autorizada
+cryptography==2.3
+
+# Vulnerabilidad: Múltiples CVEs en versiones antiguas
+# Safety debería reportar varias vulnerabilidades
+Jinja2==2.10.1
+
+# Vulnerabilidad: CVE-2019-8341 (Jinja2 < 2.10.1)
+# XSS en plantillas
+PyYAML==3.13
