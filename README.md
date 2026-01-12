@@ -69,7 +69,14 @@ Escanea la aplicación web en ejecución buscando vulnerabilidades como:
 - XSS (Cross-Site Scripting)
 - Path Traversal
 - CSRF
+- Headers de seguridad faltantes
 - Y más...
+
+**Proceso de escaneo:**
+1. El pipeline levanta la aplicación Flask vulnerable en `http://localhost:5000`
+2. Wapiti realiza un escaneo completo de todos los endpoints
+3. Genera un reporte HTML detallado con las vulnerabilidades encontradas
+4. El reporte se guarda como artifact en CircleCI
 
 **Resultado esperado:** Detectará las 7 vulnerabilidades implementadas en `app.py`.
 
@@ -77,10 +84,14 @@ Escanea la aplicación web en ejecución buscando vulnerabilidades como:
 
 ### En CircleCI:
 1. Ve a: https://app.circleci.com/pipelines/github/JeffKun1999/Auto_Pipeline
-2. Haz clic en el último workflow
-3. Ve a "ARTIFACTS" para descargar:
-   - `flake8-report.txt` - Reporte de calidad
-   - `reporte_seguridad/wapiti_report.html` - Reporte DAST completo
+2. Haz clic en el último workflow → `build-test-notify`
+3. Ve a la pestaña **"ARTIFACTS"** (arriba)
+4. Descargar:
+   - `flake8-report.txt` - Reporte de calidad de código
+   - `Reporte Wapiti DAST/wapiti_report.html` - Reporte de vulnerabilidades web
+   - `Reportes de Seguridad Completos/` - Directorio completo con todos los reportes
+
+**Nota:** Si no ves los reportes de Wapiti, verifica los logs de la etapa "Web Vulnerability Scan - DAST" para confirmar que Flask se levantó correctamente.
 
 ### Localmente:
 ```bash
