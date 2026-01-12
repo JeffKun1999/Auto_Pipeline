@@ -20,9 +20,9 @@ jobs:
       # Etapa 1: Checkout
       - checkout
 
-      # Etapa 2 y 3: Construir Entorno
+      # Etapa 2: Construir Entorno
       - run:
-          name: "Build Environment -  Construir Entorno Virtual"
+          name: "Build Environment - Construir Entorno Virtual"
           command: |
             echo "--- Preparando Entorno de Python ---"
             python3 -m venv .venv
@@ -31,6 +31,16 @@ jobs:
             pip install -r requirements.txt
             echo "--- Instalando cliente de email (yagmail) ---"
             pip install yagmail
+
+      # Etapa 3: SAST (Safety)
+      # Verifica vulnerabilidades conocidas en las dependencias instaladas
+      - run:
+          name: "Security Audit - SAST (Safety)"
+          command: |
+            echo "--- Ejecutando Safety Check ---"
+            source .venv/bin/activate
+            # Escanea el archivo requirements.txt y reporta vulnerabilidades
+            safety check -r requirements.txt --full-report || echo "Safety encontró vulnerabilidades (continuando demo)"
 
       # Etapa 4: Análisis de Calidad
       - run:
@@ -50,11 +60,11 @@ jobs:
 
       # Etapa 6: Desplegar y Ejecutar
       - run:
-          name: "Deploy & Execute -  Desplegar y Ejecutar"
+          name: "Deploy & Execute - Desplegar y Ejecutar"
           command: |
             echo "--- Desplegando la aplicación ---"
-            
-            
+
+
             if [ -f "deploy.sh" ]; then
               echo "Se encontró deploy.sh. Dando permisos de ejecución..."
               # Da permisos de ejecución al script de shell
@@ -67,11 +77,32 @@ jobs:
               exit 1
             fi
             # --- FIN DE LA CORRECCIÓN ---
-            
+
             echo "--- Ejecutando Script de Comparación de PDFs ---"
             source .venv/bin/activate
             python compare_pdfs.py DocumentoA_1.pdf DocumentoA2.pdf
             python compare_pdfs.py DocumentoA_1.pdf DocumentoB1.pdf
+
+      # Etapa 7: DAST (Wapiti)
+      # IMPORTANTE: Wapiti necesita una aplicación WEB corriendo.
+      # Se ejecuta después del deploy para escanear la aplicación en ejecución.
+      - run:
+          name: "Web Vulnerability Scan - DAST (Wapiti)"
+          command: |
+            echo "--- Ejecutando Wapiti ---"
+            source .venv/bin/activate
+            # -u define la URL objetivo. Reemplaza 'http://localhost:5000' con tu URL real.
+            # --flush-session fuerza un nuevo escaneo.
+            # -o guarda el reporte en el directorio reporte_seguridad.
+            # ADVERTENCIA: Esto fallará si no hay nada corriendo en el puerto.
+            # Para la demo, usamos 'true' al final para que no rompa el pipeline si falla la conexión.
+            mkdir -p reporte_seguridad
+            wapiti -u http://localhost:5000 -o reporte_seguridad/wapiti_report.html --flush-session || true
+
+      # Guardar reporte de Wapiti como artefacto
+      - store_artifacts:
+          path: reporte_seguridad/wapiti_report.html
+          name: "Reporte Wapiti DAST"
 
       # --- Pasos 'post' ---
 
