@@ -39,15 +39,98 @@ El pipeline necesita credenciales de email para enviar notificaciones. Debes con
    - Copia la contraseña generada (formato: `xxxx xxxx xxxx xxxx`)
 6. Usa esta contraseña en la variable `EMAIL_HOST_PASSWORD` de CircleCI
 
+#### Variables Opcionales para Safety (SAST):
+
+| Variable Name | Descripción | Cómo Obtenerla |
+|---------------|-------------|----------------|
+| `SAFETY_API_KEY` | API Key de Safety CLI (opcional) | Ver sección 2 más abajo |
+
+**Nota:** Safety puede funcionar sin API Key usando el comando legacy `safety check`, pero la API key permite usar características nuevas de `safety scan`.
+
 ### Paso 4: Verificar la Configuración
 
 Después de configurar las variables, el próximo push al repositorio debería:
 - ✅ Ejecutar el pipeline completo
 - ✅ Enviar email de notificación al finalizar
+- ✅ Generar reportes de seguridad (Safety, Wapiti)
 
 ---
 
-## 2. LaunchDarkly - Feature Flags (OPCIONAL)
+## 2. Safety CLI - Configuración de API Key (OPCIONAL)
+
+### ¿Qué es Safety?
+
+Safety es una herramienta de SAST (Static Application Security Testing) que escanea las dependencias de Python en busca de vulnerabilidades conocidas (CVEs).
+
+### Estado Actual
+
+Desde versiones recientes, Safety requiere autenticación para usar el comando `safety scan`. Sin embargo, el pipeline está configurado para funcionar de dos formas:
+
+**Opción A: Sin API Key (Modo Legacy)**
+- Usa el comando antiguo: `safety check`
+- Funciona sin autenticación
+- Es suficiente para este proyecto de demostración
+
+**Opción B: Con API Key (Recomendado para producción)**
+- Usa el comando nuevo: `safety scan`
+- Requiere cuenta gratuita en Safety
+- Acceso a características avanzadas
+
+### Cómo Obtener una Safety API Key
+
+1. **Registrarse en Safety:**
+   - Ve a: https://platform.safetycli.com/
+   - Haz clic en "Sign Up" o "Register"
+   - Completa el registro (es gratis para siempre)
+
+2. **Obtener la API Key:**
+   - Inicia sesión en Safety CLI
+   - Ve a Settings o Profile
+   - Busca "API Key" o "Authentication Token"
+   - Copia la API key
+
+3. **Configurar en CircleCI:**
+   - Ve a Project Settings → Environment Variables
+   - Agrega variable:
+     - Name: `SAFETY_API_KEY`
+     - Value: `tu-api-key-aquí`
+
+### Alternativa: Usar Credenciales Locales
+
+Si ya te autenticaste localmente con Safety, puedes obtener tu API key de:
+
+```bash
+# Linux/Mac
+cat ~/.safety/auth.json
+
+# Windows
+type %USERPROFILE%\.safety\auth.json
+```
+
+Busca el campo `api_key` en el JSON y cópialo.
+
+### Verificación
+
+Con la API key configurada, el pipeline mostrará:
+```
+✓ SAFETY_API_KEY encontrada, usando autenticación
+Generando reporte JSON...
+Generando reporte TXT...
+✓ Reportes de Safety generados (con autenticación)
+```
+
+Sin la API key, mostrará:
+```
+⚠️  WARNING: SAFETY_API_KEY no configurada
+Usando 'safety check' (antiguo pero funcional sin auth)...
+✓ Reportes de Safety generados (modo legacy sin autenticación)
+```
+
+Ambos modos generan reportes como artifacts en CircleCI.
+
+---
+
+## 3. LaunchDarkly - Feature Flags (OPCIONAL)
 
 ### ¿Qué es LaunchDarkly?
 

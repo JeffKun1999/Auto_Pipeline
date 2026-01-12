@@ -37,25 +37,94 @@ jobs:
       - run:
           name: "Security Audit - SAST (Safety)"
           command: |
-            echo "--- Ejecutando Safety Scan ---"
+            echo "=========================================="
+            echo "  ANÁLISIS SAST CON SAFETY"
+            echo "=========================================="
             source .venv/bin/activate
             echo "Analizando dependencias vulnerables en requirements-vulnerable.txt..."
 
             # Convertir CRLF a LF por si acaso
             dos2unix requirements-vulnerable.txt 2>/dev/null || sed -i 's/\r$//' requirements-vulnerable.txt
 
-            # Usar el nuevo comando 'scan' en lugar de 'check' (deprecated)
-            # --output text para formato legible en consola
-            echo "Ejecutando: safety scan --file requirements-vulnerable.txt"
-            safety scan --file requirements-vulnerable.txt || echo "✓ Safety encontró vulnerabilidades (esperado para demo)"
+            # Crear directorio para reportes
+            mkdir -p reporte_seguridad
+
+            # Verificar si hay API key configurada
+            if [ -z "$SAFETY_API_KEY" ]; then
+              echo "⚠️  WARNING: SAFETY_API_KEY no configurada"
+              echo "Safety requiere autenticación desde versión reciente"
+              echo "Alternativa: Usar safety check (comando antiguo) sin autenticación"
+              echo ""
+
+              # Intentar con comando antiguo que no requiere autenticación
+              echo "Usando 'safety check' (antiguo pero funcional sin auth)..."
+              safety check -r requirements-vulnerable.txt --json > reporte_seguridad/safety-report.json 2>&1 || true
+              safety check -r requirements-vulnerable.txt --full-report > reporte_seguridad/safety-report.txt 2>&1 || true
+
+              echo "✓ Reportes de Safety generados (modo legacy sin autenticación)"
+            else
+              echo "✓ SAFETY_API_KEY encontrada, usando autenticación"
+
+              # Generar reporte JSON
+              echo "Generando reporte JSON..."
+              safety scan --key "$SAFETY_API_KEY" --file requirements-vulnerable.txt --output json > reporte_seguridad/safety-report.json 2>&1 || true
+
+              # Generar reporte TXT legible
+              echo "Generando reporte TXT..."
+              safety scan --key "$SAFETY_API_KEY" --file requirements-vulnerable.txt --output text > reporte_seguridad/safety-report.txt 2>&1 || true
+
+              echo "✓ Reportes de Safety generados (con autenticación)"
+            fi
+
+            # Verificar que se generaron los reportes
+            echo ""
+            echo "Reportes generados:"
+            ls -lh reporte_seguridad/safety-report.* 2>/dev/null || echo "No se generaron reportes"
+
+            # Mostrar preview del reporte TXT
+            if [ -f "reporte_seguridad/safety-report.txt" ]; then
+              echo ""
+              echo "Preview del reporte:"
+              head -n 30 reporte_seguridad/safety-report.txt
+            fi
+            echo "=========================================="
+
+      # Guardar reportes de Safety como artifacts
+      - store_artifacts:
+          path: reporte_seguridad/safety-report.json
+          name: "Safety Report JSON"
+          when: always
+
+      - store_artifacts:
+          path: reporte_seguridad/safety-report.txt
+          name: "Safety Report TXT"
+          when: always
 
       # Etapa 4: Análisis de Calidad
       - run:
-          name: "Code Quality -  Análisis de Calidad (Flake8)"
+          name: "Code Quality - Análisis de Calidad (Flake8)"
           command: |
-            echo "--- Ejecutando Análisis de Calidad de Código con Flake8 ---"
+            echo "=========================================="
+            echo "  ANÁLISIS DE CALIDAD CON FLAKE8"
+            echo "=========================================="
             source .venv/bin/activate
+
+            # Ejecutar Flake8 y guardar reporte
+            echo "Ejecutando Flake8..."
             flake8 --output-file=flake8-report.txt --tee || echo "Flake8 encontró problemas" > flake8_failure.txt
+
+            # Verificar que se generó el archivo
+            if [ -f "flake8-report.txt" ]; then
+              FILE_SIZE=$(stat -f%z "flake8-report.txt" 2>/dev/null || stat -c%s "flake8-report.txt" 2>/dev/null || echo "?")
+              LINES=$(wc -l < flake8-report.txt)
+              echo "✓ Reporte de Flake8 generado"
+              echo "  Archivo: flake8-report.txt"
+              echo "  Tamaño: $FILE_SIZE bytes"
+              echo "  Problemas encontrados: $LINES líneas"
+            else
+              echo "⚠️  WARNING: No se generó flake8-report.txt"
+            fi
+            echo "=========================================="
 
       # Etapa 5: Pruebas Unitarias
       - run:
