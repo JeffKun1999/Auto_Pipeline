@@ -4,3 +4,9 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+
+# Base de datos SQLite generada por app.py
+vulnerable.db
+
+# Reportes de seguridad generados por Wapiti
+reporte_seguridad/

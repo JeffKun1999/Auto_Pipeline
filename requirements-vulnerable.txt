@@ -1,0 +1,43 @@
+# ======================================================================
+# DEPENDENCIAS VULNERABLES INTENCIONALES PARA PRUEBAS DEVSECOPS
+# ======================================================================
+# ADVERTENCIA: Este archivo contiene versiones con vulnerabilidades conocidas (CVEs)
+# NUNCA instalar estas dependencias - solo para análisis de Safety (SAST)
+#
+# Uso: safety check -r requirements-vulnerable.txt
+# ======================================================================
+
+# Vulnerabilidad: CVE-2019-11324 (urllib3 < 1.24.2)
+# Descripción: Bypass de validación de certificados SSL
+# Severidad: ALTA
+urllib3==1.24.1
+
+# Vulnerabilidad: CVE-2018-18074 (requests < 2.20.0)
+# Descripción: Redirección no autorizada con credenciales
+# Severidad: MEDIA
+requests==2.20.0
+
+# Vulnerabilidad: Múltiples CVEs
+# Descripción: Vulnerabilidades criptográficas
+# Severidad: CRÍTICA
+cryptography==2.3
+
+# Vulnerabilidad: CVE-2019-8341 (Jinja2 < 2.10.1)
+# Descripción: XSS en templates
+# Severidad: ALTA
+Jinja2==2.10.1
+
+# Vulnerabilidad: CVE-2017-18342 (PyYAML < 5.4)
+# Descripción: Ejecución arbitraria de código mediante deserialización
+# Severidad: CRÍTICA
+PyYAML==3.13
+
+# Vulnerabilidad: Versiones antiguas de Django
+# Descripción: Múltiples CVEs en versiones < 3.2
+# Severidad: CRÍTICA
+Django==2.0.0
+
+# Vulnerabilidad: Versiones antiguas de Flask
+# Descripción: Vulnerabilidades conocidas
+# Severidad: ALTA
+Flask==2.0.0

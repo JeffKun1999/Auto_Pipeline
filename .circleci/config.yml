@@ -33,14 +33,15 @@ jobs:
             pip install yagmail
 
       # Etapa 3: SAST (Safety)
-      # Verifica vulnerabilidades conocidas en las dependencias instaladas
+      # Verifica vulnerabilidades conocidas en las dependencias
       - run:
           name: "Security Audit - SAST (Safety)"
           command: |
             echo "--- Ejecutando Safety Check ---"
             source .venv/bin/activate
-            # Escanea el archivo requirements.txt y reporta vulnerabilidades
-            safety check -r requirements.txt --full-report || echo "Safety encontró vulnerabilidades (continuando demo)"
+            echo "Analizando dependencias vulnerables en requirements-vulnerable.txt..."
+            # Escanea el archivo con dependencias vulnerables intencionales
+            safety check -r requirements-vulnerable.txt --full-report || echo "Safety encontró vulnerabilidades (esperado para demo)"
 
       # Etapa 4: Análisis de Calidad
       - run:

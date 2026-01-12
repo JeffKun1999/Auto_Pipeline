@@ -2,6 +2,12 @@
 
 Pipeline CI/CD con integración de herramientas de seguridad (DevSecOps) usando CircleCI.
 
+## Inicio Rápido
+
+**⚠️ IMPORTANTE:** Antes de ejecutar el pipeline, debes configurar las variables de entorno en CircleCI.
+
+👉 **[Ver guía completa de configuración en SETUP.md](SETUP.md)**
+
 ## Descripción
 
 Este proyecto implementa un pipeline completo DevSecOps que integra:
@@ -39,12 +45,16 @@ Este proyecto implementa un pipeline completo DevSecOps que integra:
 
 ### Dependencias Vulnerables:
 
-El archivo `requirements.txt` incluye versiones antiguas con CVEs conocidos:
+El archivo `requirements-vulnerable.txt` incluye versiones antiguas con CVEs conocidos:
 - `urllib3==1.24.1` (CVE-2019-11324)
 - `requests==2.20.0` (CVE-2018-18074)
 - `cryptography==2.3` (Múltiples CVEs)
 - `Jinja2==2.10.1` (CVE-2019-8341)
-- `PyYAML==3.13` (Vulnerabilidades de deserialización)
+- `PyYAML==3.13` (CVE-2017-18342)
+- `Django==2.0.0` (Múltiples CVEs)
+- `Flask==2.0.0` (Vulnerabilidades conocidas)
+
+**Nota:** El pipeline instala `requirements.txt` (versiones seguras) para funcionar correctamente, pero Safety analiza `requirements-vulnerable.txt` para detectar las vulnerabilidades.
 
 ## Herramientas de Seguridad
 
