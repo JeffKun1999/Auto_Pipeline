@@ -142,18 +142,24 @@ jobs:
 
             # Ejecutar Wapiti
             echo "[5/6] Ejecutando Wapiti..."
-            echo "Comando: wapiti -u http://localhost:5000 -f html -o reporte_seguridad/wapiti_report.html"
 
-            wapiti -u http://localhost:5000 \
-                   -f html \
-                   -o reporte_seguridad/wapiti_report.html \
-                   --flush-session \
-                   --scope url \
-                   -v 1 2>&1 | tee wapiti.log || {
-                     echo "⚠ Wapiti terminó con código de salida: $?"
-                     echo "Logs de Wapiti:"
-                     cat wapiti.log || echo "No logs disponibles"
-                   }
+            # Wapiti 3.x requiere URL completa con barra final
+            TARGET_URL="http://localhost:5000/"
+            OUTPUT_FILE="reporte_seguridad/wapiti_report.html"
+
+            echo "Target URL: $TARGET_URL"
+            echo "Output: $OUTPUT_FILE"
+            echo ""
+
+            # Ejecutar Wapiti con sintaxis correcta para versión 3.x
+            # -u URL (con barra al final)
+            # -f formato (html, json, txt, xml)
+            # -o archivo de salida
+            echo "Ejecutando Wapiti..."
+            wapiti -u "$TARGET_URL" -f html -o "$OUTPUT_FILE" 2>&1 | tee wapiti.log
+
+            WAPITI_EXIT=$?
+            echo "Wapiti terminó con código de salida: $WAPITI_EXIT"
 
             # Detener Flask
             echo "[6/6] Limpieza..."
