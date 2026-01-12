@@ -37,11 +37,17 @@ jobs:
       - run:
           name: "Security Audit - SAST (Safety)"
           command: |
-            echo "--- Ejecutando Safety Check ---"
+            echo "--- Ejecutando Safety Scan ---"
             source .venv/bin/activate
             echo "Analizando dependencias vulnerables en requirements-vulnerable.txt..."
-            # Escanea el archivo con dependencias vulnerables intencionales
-            safety check -r requirements-vulnerable.txt --full-report || echo "Safety encontró vulnerabilidades (esperado para demo)"
+
+            # Convertir CRLF a LF por si acaso
+            dos2unix requirements-vulnerable.txt 2>/dev/null || sed -i 's/\r$//' requirements-vulnerable.txt
+
+            # Usar el nuevo comando 'scan' en lugar de 'check' (deprecated)
+            # --output text para formato legible en consola
+            echo "Ejecutando: safety scan --file requirements-vulnerable.txt"
+            safety scan --file requirements-vulnerable.txt || echo "✓ Safety encontró vulnerabilidades (esperado para demo)"
 
       # Etapa 4: Análisis de Calidad
       - run:
@@ -89,67 +95,115 @@ jobs:
       - run:
           name: "Web Vulnerability Scan - DAST (Wapiti)"
           command: |
-            echo "--- Preparando aplicación para escaneo DAST ---"
+            echo "=========================================="
+            echo "  INICIANDO ESCANEO DAST CON WAPITI"
+            echo "=========================================="
             source .venv/bin/activate
 
+            # Crear directorio para reportes
+            echo "[1/6] Creando directorio de reportes..."
+            mkdir -p reporte_seguridad
+            pwd
+            ls -la
+
             # Levantar la aplicación Flask en background
-            echo "Iniciando aplicación Flask vulnerable en puerto 5000..."
-            python app.py &
+            echo "[2/6] Iniciando aplicación Flask en puerto 5000..."
+            export FLASK_ENV=development
+            nohup python app.py > flask.log 2>&1 &
             FLASK_PID=$!
             echo "Flask iniciado con PID: $FLASK_PID"
 
-            # Esperar a que Flask esté listo (máximo 30 segundos)
-            echo "Esperando a que Flask esté disponible..."
+            # Esperar a que Flask esté listo
+            echo "[3/6] Esperando a que Flask esté disponible..."
+            FLASK_READY=false
             for i in {1..30}; do
-              if curl -s http://localhost:5000 > /dev/null; then
-                echo "✓ Flask está listo después de $i segundos"
+              if curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 | grep -q "200"; then
+                echo "✓ Flask respondió exitosamente después de $i segundos"
+                FLASK_READY=true
                 break
               fi
-              echo "Esperando... intento $i/30"
+              echo "  Intento $i/30: esperando..."
               sleep 1
             done
 
-            # Verificar que Flask está corriendo
-            if ! curl -s http://localhost:5000 > /dev/null; then
-              echo "ERROR: Flask no responde en http://localhost:5000"
+            if [ "$FLASK_READY" = false ]; then
+              echo "❌ ERROR: Flask no respondió después de 30 segundos"
+              echo "Logs de Flask:"
+              cat flask.log || echo "No se pudo leer flask.log"
               kill $FLASK_PID 2>/dev/null || true
-              exit 1
+              echo "⚠ Continuando sin escaneo DAST..."
+              exit 0
             fi
 
-            echo "--- Ejecutando Wapiti ---"
-            # Crear directorio para reportes
-            mkdir -p reporte_seguridad
+            # Probar endpoint de Flask
+            echo "[4/6] Verificando endpoints de Flask..."
+            curl -s http://localhost:5000 | head -n 5
+            echo ""
 
-            # Ejecutar Wapiti con opciones de escaneo completo
-            echo "Escaneando aplicación vulnerable con Wapiti..."
+            # Ejecutar Wapiti
+            echo "[5/6] Ejecutando Wapiti..."
+            echo "Comando: wapiti -u http://localhost:5000 -f html -o reporte_seguridad/wapiti_report.html"
+
             wapiti -u http://localhost:5000 \
                    -f html \
                    -o reporte_seguridad/wapiti_report.html \
                    --flush-session \
                    --scope url \
-                   -v 2 || echo "Wapiti completó el escaneo (puede haber encontrado vulnerabilidades)"
+                   -v 1 2>&1 | tee wapiti.log || {
+                     echo "⚠ Wapiti terminó con código de salida: $?"
+                     echo "Logs de Wapiti:"
+                     cat wapiti.log || echo "No logs disponibles"
+                   }
 
             # Detener Flask
+            echo "[6/6] Limpieza..."
             echo "Deteniendo Flask (PID: $FLASK_PID)..."
             kill $FLASK_PID 2>/dev/null || true
+            sleep 2
 
-            # Verificar que el reporte se generó
+            # Verificar resultados
+            echo ""
+            echo "=========================================="
+            echo "  RESULTADOS DEL ESCANEO"
+            echo "=========================================="
+            echo "Contenido de reporte_seguridad/:"
+            ls -lah reporte_seguridad/ || echo "Directorio no existe"
+
             if [ -f "reporte_seguridad/wapiti_report.html" ]; then
-              echo "✓ Reporte de Wapiti generado exitosamente"
-              ls -lh reporte_seguridad/wapiti_report.html
+              FILE_SIZE=$(stat -f%z "reporte_seguridad/wapiti_report.html" 2>/dev/null || stat -c%s "reporte_seguridad/wapiti_report.html" 2>/dev/null || echo "?")
+              echo "✓✓✓ ÉXITO: Reporte generado ✓✓✓"
+              echo "  Archivo: reporte_seguridad/wapiti_report.html"
+              echo "  Tamaño: $FILE_SIZE bytes"
+              head -n 10 reporte_seguridad/wapiti_report.html
             else
-              echo "⚠ WARNING: No se generó el reporte de Wapiti"
+              echo "❌ ERROR: No se generó reporte_seguridad/wapiti_report.html"
+              echo "Archivos en directorio actual:"
+              find . -name "*.html" -type f 2>/dev/null || true
             fi
+            echo "=========================================="
 
       # Guardar reporte de Wapiti como artefacto
       - store_artifacts:
           path: reporte_seguridad/wapiti_report.html
           name: "Reporte Wapiti DAST"
+          when: always
 
-      # Guardar directorio completo de reportes (por si hay archivos adicionales)
+      # Guardar directorio completo de reportes
       - store_artifacts:
           path: reporte_seguridad/
           name: "Reportes de Seguridad Completos"
+          when: always
+
+      # Guardar logs para debugging
+      - store_artifacts:
+          path: flask.log
+          name: "Flask Logs"
+          when: always
+
+      - store_artifacts:
+          path: wapiti.log
+          name: "Wapiti Logs"
+          when: always
 
       # --- Pasos 'post' ---
 

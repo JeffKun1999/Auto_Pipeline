@@ -1,0 +1,5 @@
+# Force LF line endings for requirements files to avoid encoding issues
+requirements.txt text eol=lf
+requirements-vulnerable.txt text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
