@@ -259,6 +259,7 @@ workflows:
           filters:
             branches:
               only:
+                - ProyectoFinal
                 - ArgoCD
                 - main
 
