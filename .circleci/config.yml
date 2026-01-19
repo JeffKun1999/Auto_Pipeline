@@ -269,7 +269,7 @@ workflows:
           filters:
             branches:
               only:
-                - ArgoCD
+                - ProyectoFinal
                 - main
           context:
             - docker-hub-credentials
