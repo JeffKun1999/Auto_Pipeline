@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pdf-compare-config
+  namespace: pdf-compare
+  labels:
+    app: pdf-compare
+data:
+  EMAIL_HOST: "smtp.gmail.com"
+  EMAIL_PORT: "587"
+  FLASK_ENV: "production"
+  FLASK_DEBUG: "0"

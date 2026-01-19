@@ -2,34 +2,37 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: pdf-comparison-job
-  namespace: default
+  namespace: pdf-compare
+  labels:
+    app: pdf-compare
 spec:
-  schedule: "*/5 * * * *" # Ejecutar cada 5 minutos (para pruebas)
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
       template:
+        metadata:
+          labels:
+            app: pdf-compare
+            component: cronjob
         spec:
           containers:
           - name: pdf-comparator
-            # IMPORTANTE: Cambia 'tu_usuario_dockerhub' por tu usuario real de Docker Hub
-            image: jeffdeck/pdf-compare-app:latest 
+            image: jeffdeck/pdf-compare-app:latest
             imagePullPolicy: Always
             command: ["python", "compare_pdfs.py", "DocumentoA_1.pdf", "DocumentoA2.pdf"]
-            env:
-            # SDK Key de LaunchDarkly (tomada de tu ejemplo)
-            - name: LD_SDK_KEY
-              value: "sdk-4c9a5f90-1222-4563-8263-4de07217f1a4"
-            
-            # Configuración de Correo Electrónico
-            - name: EMAIL_HOST
-              value: "smtp.gmail.com"
-            - name: EMAIL_PORT
-              value: "587"
-            - name: EMAIL_HOST_USER
-              value: "je1400r@gmail.com"
-            - name: EMAIL_HOST_PASSWORD
-              value: "rujh knft pxhc nedf" #Nueva contraseña de aplicación
-            - name: RECIPIENT_EMAIL
-              value: "juanjominino@gmail.com"
-              
+            envFrom:
+            - configMapRef:
+                name: pdf-compare-config
+            - secretRef:
+                name: pdf-compare-secrets
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "256Mi"
+                cpu: "500m"
           restartPolicy: OnFailure

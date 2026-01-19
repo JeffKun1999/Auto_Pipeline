@@ -1,8 +1,16 @@
-# Usar la versión 2.1 del motor de pipelines de CircleCI
+# Pipeline CI/CD con CircleCI (CI) + ArgoCD (CD)
+# CI: Build, Test, SAST, DAST, Push imagen Docker
+# CD: ArgoCD sincroniza automaticamente con Kubernetes
 version: 2.1
 
 # ---------------------------------------------------------------------
-# EJECUTOR REUTILIZABLE
+# ORBS - Paquetes reutilizables de CircleCI
+# ---------------------------------------------------------------------
+orbs:
+  docker: circleci/docker@2.4.0
+
+# ---------------------------------------------------------------------
+# EJECUTORES REUTILIZABLES
 # ---------------------------------------------------------------------
 executors:
   python-executor:
@@ -13,14 +21,15 @@ executors:
 # JOBS
 # ---------------------------------------------------------------------
 jobs:
-  build-test-notify:
+  # ===================================================================
+  # JOB 1: CI - Test y Analisis de Seguridad
+  # ===================================================================
+  test-and-scan:
     executor: python-executor
-    
     steps:
-      # Etapa 1: Checkout
       - checkout
 
-      # Etapa 2: Construir Entorno
+      # Construir Entorno
       - run:
           name: "Build Environment - Construir Entorno Virtual"
           command: |
@@ -32,64 +41,32 @@ jobs:
             echo "--- Instalando cliente de email (yagmail) ---"
             pip install yagmail
 
-      # Etapa 3: SAST (Safety)
-      # Verifica vulnerabilidades conocidas en las dependencias
+      # SAST (Safety)
       - run:
           name: "Security Audit - SAST (Safety)"
           command: |
             echo "=========================================="
-            echo "  ANÁLISIS SAST CON SAFETY"
+            echo "  ANALISIS SAST CON SAFETY"
             echo "=========================================="
             source .venv/bin/activate
             echo "Analizando dependencias vulnerables en requirements-vulnerable.txt..."
-
-            # Convertir CRLF a LF por si acaso
             dos2unix requirements-vulnerable.txt 2>/dev/null || sed -i 's/\r$//' requirements-vulnerable.txt
-
-            # Crear directorio para reportes
             mkdir -p reporte_seguridad
 
-            # Verificar si hay API key configurada
             if [ -z "$SAFETY_API_KEY" ]; then
-              echo "⚠️  WARNING: SAFETY_API_KEY no configurada"
-              echo "Safety requiere autenticación desde versión reciente"
-              echo "Alternativa: Usar safety check (comando antiguo) sin autenticación"
-              echo ""
-
-              # Intentar con comando antiguo que no requiere autenticación
-              echo "Usando 'safety check' (antiguo pero funcional sin auth)..."
+              echo "Usando 'safety check' (modo legacy sin auth)..."
               safety check -r requirements-vulnerable.txt --json > reporte_seguridad/safety-report.json 2>&1 || true
               safety check -r requirements-vulnerable.txt --full-report > reporte_seguridad/safety-report.txt 2>&1 || true
-
-              echo "✓ Reportes de Safety generados (modo legacy sin autenticación)"
             else
-              echo "✓ SAFETY_API_KEY encontrada, usando autenticación"
-
-              # Generar reporte JSON
-              echo "Generando reporte JSON..."
+              echo "SAFETY_API_KEY encontrada, usando autenticacion"
               safety scan --key "$SAFETY_API_KEY" --file requirements-vulnerable.txt --output json > reporte_seguridad/safety-report.json 2>&1 || true
-
-              # Generar reporte TXT legible
-              echo "Generando reporte TXT..."
               safety scan --key "$SAFETY_API_KEY" --file requirements-vulnerable.txt --output text > reporte_seguridad/safety-report.txt 2>&1 || true
-
-              echo "✓ Reportes de Safety generados (con autenticación)"
             fi
 
-            # Verificar que se generaron los reportes
-            echo ""
             echo "Reportes generados:"
             ls -lh reporte_seguridad/safety-report.* 2>/dev/null || echo "No se generaron reportes"
-
-            # Mostrar preview del reporte TXT
-            if [ -f "reporte_seguridad/safety-report.txt" ]; then
-              echo ""
-              echo "Preview del reporte:"
-              head -n 30 reporte_seguridad/safety-report.txt
-            fi
             echo "=========================================="
 
-      # Guardar reportes de Safety como artifacts
       - store_artifacts:
           path: reporte_seguridad/safety-report.json
           name: "Safety Report JSON"
@@ -100,67 +77,40 @@ jobs:
           name: "Safety Report TXT"
           when: always
 
-      # Etapa 4: Análisis de Calidad
+      # Code Quality (Flake8)
       - run:
-          name: "Code Quality - Análisis de Calidad (Flake8)"
+          name: "Code Quality - Analisis de Calidad (Flake8)"
           command: |
             echo "=========================================="
-            echo "  ANÁLISIS DE CALIDAD CON FLAKE8"
+            echo "  ANALISIS DE CALIDAD CON FLAKE8"
             echo "=========================================="
             source .venv/bin/activate
-
-            # Ejecutar Flake8 y guardar reporte
-            echo "Ejecutando Flake8..."
-            flake8 --output-file=flake8-report.txt --tee || echo "Flake8 encontró problemas" > flake8_failure.txt
-
-            # Verificar que se generó el archivo
-            if [ -f "flake8-report.txt" ]; then
-              FILE_SIZE=$(stat -f%z "flake8-report.txt" 2>/dev/null || stat -c%s "flake8-report.txt" 2>/dev/null || echo "?")
-              LINES=$(wc -l < flake8-report.txt)
-              echo "✓ Reporte de Flake8 generado"
-              echo "  Archivo: flake8-report.txt"
-              echo "  Tamaño: $FILE_SIZE bytes"
-              echo "  Problemas encontrados: $LINES líneas"
-            else
-              echo "⚠️  WARNING: No se generó flake8-report.txt"
-            fi
+            flake8 --output-file=flake8-report.txt --tee || echo "Flake8 encontro problemas" > flake8_failure.txt
             echo "=========================================="
 
-      # Etapa 5: Pruebas Unitarias
+      # Unit Tests
       - run:
-          name: "Unit Tests -  Ejecutar Pruebas Unitarias"
+          name: "Unit Tests - Ejecutar Pruebas Unitarias"
           command: |
             echo "--- Ejecutando Pruebas Unitarias con Pytest ---"
             source .venv/bin/activate
             pytest
 
-      # Etapa 6: Desplegar y Ejecutar
+      # Deploy local y ejecutar scripts
       - run:
           name: "Deploy & Execute - Desplegar y Ejecutar"
           command: |
-            echo "--- Desplegando la aplicación ---"
-
-
+            echo "--- Desplegando la aplicacion ---"
             if [ -f "deploy.sh" ]; then
-              echo "Se encontró deploy.sh. Dando permisos de ejecución..."
-              # Da permisos de ejecución al script de shell
               chmod +x deploy.sh
-              # Ejecuta el script de shell
               ./deploy.sh
-            else
-              echo "Error: No se encontró 'deploy.sh'."
-              echo "Por favor, crea 'deploy.sh' (la versión para Linux de 'deploy.bat')."
-              exit 1
             fi
-            # --- FIN DE LA CORRECCIÓN ---
-
-            echo "--- Ejecutando Script de Comparación de PDFs ---"
+            echo "--- Ejecutando Script de Comparacion de PDFs ---"
             source .venv/bin/activate
             python compare_pdfs.py DocumentoA_1.pdf DocumentoA2.pdf
             python compare_pdfs.py DocumentoA_1.pdf DocumentoB1.pdf
 
-      # Etapa 7: DAST (Wapiti)
-      # IMPORTANTE: Levantamos la aplicación Flask vulnerable para escanearla
+      # DAST (Wapiti)
       - run:
           name: "Web Vulnerability Scan - DAST (Wapiti)"
           command: |
@@ -168,108 +118,54 @@ jobs:
             echo "  INICIANDO ESCANEO DAST CON WAPITI"
             echo "=========================================="
             source .venv/bin/activate
-
-            # Crear directorio para reportes
-            echo "[1/6] Creando directorio de reportes..."
             mkdir -p reporte_seguridad
-            pwd
-            ls -la
 
-            # Levantar la aplicación Flask en background
-            echo "[2/6] Iniciando aplicación Flask en puerto 5000..."
+            # Levantar Flask
+            echo "Iniciando aplicacion Flask en puerto 5000..."
             export FLASK_ENV=development
             nohup python app.py > flask.log 2>&1 &
             FLASK_PID=$!
-            echo "Flask iniciado con PID: $FLASK_PID"
 
-            # Esperar a que Flask esté listo
-            echo "[3/6] Esperando a que Flask esté disponible..."
+            # Esperar a que Flask este listo
             FLASK_READY=false
             for i in {1..30}; do
               if curl -s -o /dev/null -w "%{http_code}" http://localhost:5000 | grep -q "200"; then
-                echo "✓ Flask respondió exitosamente después de $i segundos"
+                echo "Flask respondio exitosamente despues de $i segundos"
                 FLASK_READY=true
                 break
               fi
-              echo "  Intento $i/30: esperando..."
               sleep 1
             done
 
             if [ "$FLASK_READY" = false ]; then
-              echo "❌ ERROR: Flask no respondió después de 30 segundos"
-              echo "Logs de Flask:"
-              cat flask.log || echo "No se pudo leer flask.log"
+              echo "ERROR: Flask no respondio"
+              cat flask.log || true
               kill $FLASK_PID 2>/dev/null || true
-              echo "⚠ Continuando sin escaneo DAST..."
               exit 0
             fi
 
-            # Probar endpoint de Flask
-            echo "[4/6] Verificando endpoints de Flask..."
-            curl -s http://localhost:5000 | head -n 5
-            echo ""
-
             # Ejecutar Wapiti
-            echo "[5/6] Ejecutando Wapiti..."
-
-            # Wapiti 3.x requiere URL completa con barra final
             TARGET_URL="http://localhost:5000/"
             OUTPUT_FILE="reporte_seguridad/wapiti_report.html"
-
-            echo "Target URL: $TARGET_URL"
-            echo "Output: $OUTPUT_FILE"
-            echo ""
-
-            # Ejecutar Wapiti con sintaxis correcta para versión 3.x
-            # -u URL (con barra al final)
-            # -f formato (html, json, txt, xml)
-            # -o archivo de salida
-            echo "Ejecutando Wapiti..."
             wapiti -u "$TARGET_URL" -f html -o "$OUTPUT_FILE" 2>&1 | tee wapiti.log
 
-            WAPITI_EXIT=$?
-            echo "Wapiti terminó con código de salida: $WAPITI_EXIT"
-
             # Detener Flask
-            echo "[6/6] Limpieza..."
-            echo "Deteniendo Flask (PID: $FLASK_PID)..."
             kill $FLASK_PID 2>/dev/null || true
-            sleep 2
 
-            # Verificar resultados
-            echo ""
             echo "=========================================="
-            echo "  RESULTADOS DEL ESCANEO"
-            echo "=========================================="
-            echo "Contenido de reporte_seguridad/:"
             ls -lah reporte_seguridad/ || echo "Directorio no existe"
-
-            if [ -f "reporte_seguridad/wapiti_report.html" ]; then
-              FILE_SIZE=$(stat -f%z "reporte_seguridad/wapiti_report.html" 2>/dev/null || stat -c%s "reporte_seguridad/wapiti_report.html" 2>/dev/null || echo "?")
-              echo "✓✓✓ ÉXITO: Reporte generado ✓✓✓"
-              echo "  Archivo: reporte_seguridad/wapiti_report.html"
-              echo "  Tamaño: $FILE_SIZE bytes"
-              head -n 10 reporte_seguridad/wapiti_report.html
-            else
-              echo "❌ ERROR: No se generó reporte_seguridad/wapiti_report.html"
-              echo "Archivos en directorio actual:"
-              find . -name "*.html" -type f 2>/dev/null || true
-            fi
             echo "=========================================="
 
-      # Guardar reporte de Wapiti como artefacto
       - store_artifacts:
           path: reporte_seguridad/wapiti_report.html
           name: "Reporte Wapiti DAST"
           when: always
 
-      # Guardar directorio completo de reportes
       - store_artifacts:
           path: reporte_seguridad/
           name: "Reportes de Seguridad Completos"
           when: always
 
-      # Guardar logs para debugging
       - store_artifacts:
           path: flask.log
           name: "Flask Logs"
@@ -280,41 +176,100 @@ jobs:
           name: "Wapiti Logs"
           when: always
 
-      # --- Pasos 'post' ---
-
-      # Archivar Artefactos
       - store_artifacts:
-          name: "Archivar reporte de Flake8"
           path: flake8-report.txt
+          name: "Archivar reporte de Flake8"
           when: always
 
-      # Notificación de Éxito / Inestable
+      # Notificaciones
       - run:
-          name: "Notificación (Éxito / Inestable)"
+          name: "Notificacion (Exito / Inestable)"
           when: on_success
           command: |
             source .venv/bin/activate
             if [ -f "flake8_failure.txt" ]; then
-              echo "Job exitoso, pero Flake8 falló. Enviando email 'UNSTABLE'."
+              echo "Job exitoso, pero Flake8 fallo. Enviando email 'UNSTABLE'."
               python send_mail.py unstable
             else
               echo "Job exitoso. Enviando email 'SUCCESS'."
               python send_mail.py success
             fi
 
-      # Notificación de Fallo
       - run:
-          name: "Notificación (Fallo)"
+          name: "Notificacion (Fallo)"
           when: on_fail
           command: |
             source .venv/bin/activate
             echo "Job fallido. Enviando email 'FAILURE'."
             python send_mail.py failure
 
+  # ===================================================================
+  # JOB 2: CI - Build y Push de Imagen Docker
+  # ===================================================================
+  build-and-push-image:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+
+      - run:
+          name: "Build Docker Image"
+          command: |
+            echo "=========================================="
+            echo "  CONSTRUYENDO IMAGEN DOCKER"
+            echo "=========================================="
+            # Construir imagen con tag del commit SHA
+            docker build -t jeffdeck/pdf-compare-app:${CIRCLE_SHA1:0:7} .
+            docker build -t jeffdeck/pdf-compare-app:latest .
+            echo "Imagenes construidas:"
+            docker images | grep pdf-compare-app
+            echo "=========================================="
+
+      - run:
+          name: "Push Docker Image to Docker Hub"
+          command: |
+            echo "=========================================="
+            echo "  PUBLICANDO IMAGEN A DOCKER HUB"
+            echo "=========================================="
+            # Login a Docker Hub
+            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+            # Push imagenes
+            docker push jeffdeck/pdf-compare-app:${CIRCLE_SHA1:0:7}
+            docker push jeffdeck/pdf-compare-app:latest
+
+            echo "Imagenes publicadas:"
+            echo "  - jeffdeck/pdf-compare-app:${CIRCLE_SHA1:0:7}"
+            echo "  - jeffdeck/pdf-compare-app:latest"
+            echo ""
+            echo "ArgoCD detectara el cambio y sincronizara automaticamente"
+            echo "=========================================="
+
 # ---------------------------------------------------------------------
 # WORKFLOWS
 # ---------------------------------------------------------------------
 workflows:
-  main-workflow:
+  # Pipeline CI/CD principal
+  ci-cd-pipeline:
     jobs:
-      - build-test-notify
+      # CI: Test y Analisis de Seguridad
+      - test-and-scan:
+          filters:
+            branches:
+              only:
+                - ArgoCD
+                - main
+
+      # CI: Build y Push de imagen Docker (solo si test-and-scan pasa)
+      - build-and-push-image:
+          requires:
+            - test-and-scan
+          filters:
+            branches:
+              only:
+                - ArgoCD
+                - main
+          context:
+            - docker-hub-credentials

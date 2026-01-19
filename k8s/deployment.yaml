@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pdf-compare-app
+  namespace: pdf-compare
+  labels:
+    app: pdf-compare
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pdf-compare
+  template:
+    metadata:
+      labels:
+        app: pdf-compare
+    spec:
+      containers:
+      - name: pdf-compare-app
+        image: jeffdeck/pdf-compare-app:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+        envFrom:
+        - configMapRef:
+            name: pdf-compare-config
+        - secretRef:
+            name: pdf-compare-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 10
